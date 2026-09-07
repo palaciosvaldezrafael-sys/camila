@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Punto de venta — Cafetería</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #EDE6D8; }
+  * { box-sizing: border-box; }
+  .pos-root {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #EDE6D8;
+    color: #2B211A;
+    padding: 1.25rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  .pos-root h1, .pos-root h2, .pos-root h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 500;
+    margin: 0;
+  }
+  .pos-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 1rem 0 1.25rem;
+    border-bottom: 1px solid #D9CFBB;
+  }
+  .pos-tab {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: #6B5E4C;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+  }
+  .pos-tab.active {
+    color: #3C2A1E;
+    border-bottom: 2px solid #7C8B5E;
+    font-weight: 500;
+  }
+  .pos-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+  .pos-metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .pos-inline-form-5 { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 6px; align-items: end; margin-bottom: 8px; }
+  .pos-inline-form-3 { display: grid; grid-template-columns: 1fr 2fr auto; gap: 6px; align-items: end; }
+  .pos-product-edit-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  @media (max-width: 640px) {
+    .pos-product-edit-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .pos-table-wrap { overflow-x: auto; }
+  @media (max-width: 640px) {
+    .pos-root { padding: 0.85rem; }
+    .pos-grid { grid-template-columns: 1fr; }
+    .pos-metrics-grid { grid-template-columns: 1fr; }
+    .pos-inline-form-5, .pos-inline-form-3 { grid-template-columns: 1fr; }
+    .pos-tabs { overflow-x: auto; flex-wrap: nowrap; }
+    .pos-tab { white-space: nowrap; padding: 8px 12px; }
+    .pos-product-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); }
+    .pos-table { min-width: 560px; }
+  }
+  .pos-card {
+    background: #FBF8F2;
+    border: 1px solid #E2D9C6;
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .pos-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .pos-chip {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid #D9CFBB;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    color: #6B5E4C;
+  }
+  .pos-chip.active { background: #3C2A1E; color: #F5EFE2; border-color: #3C2A1E; }
+  .pos-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .pos-product {
+    background: #fff;
+    border: 1px solid #E2D9C6;
+    border-radius: 10px;
+    padding: 12px 10px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+  }
+  .pos-product:hover { border-color: #7C8B5E; }
+  .pos-product:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pos-product-name { font-size: 14px; font-weight: 500; display: block; margin-bottom: 4px; }
+  .pos-product-price { font-size: 13px; color: #6B5E4C; }
+  .pos-product-stock { font-size: 11px; color: #A6402E; margin-top: 4px; }
+  .pos-product-mod-hint { font-size: 11px; color: #7C8B5E; margin-top: 4px; }
+  .pos-cart-item { padding: 8px 0; border-bottom: 1px solid #EDE6D8; font-size: 14px; }
+  .pos-cart-item-top { display: flex; align-items: center; justify-content: space-between; }
+  .pos-cart-item-mods { font-size: 11px; color: #6B5E4C; margin-top: 2px; }
+  .pos-qty-btn { width: 22px; height: 22px; border-radius: 6px; border: 1px solid #D9CFBB; background: #fff; cursor: pointer; font-size: 13px; line-height: 1; }
+  .pos-total-row { display: flex; justify-content: space-between; padding-top: 10px; margin-top: 8px; border-top: 1px solid #D9CFBB; font-size: 16px; font-family: 'Fraunces', serif; }
+  .pos-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #7C8B5E;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .pos-btn:disabled { background: #C9C2B2; cursor: not-allowed; }
+  .pos-btn-secondary { background: transparent; border: 1px solid #D9CFBB; color: #3C2A1E; }
+  .pos-input, .pos-select {
+    width: 100%;
+    padding: 7px 9px;
+    border-radius: 7px;
+    border: 1px solid #D9CFBB;
+    font-size: 13px;
+    background: #fff;
+    color: #2B211A;
+    font-family: inherit;
+  }
+  .pos-form-row { display: grid; grid-template-columns: 1fr; gap: 6px; margin-bottom: 8px; }
+  .pos-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .pos-table th { text-align: left; color: #6B5E4C; font-weight: 500; padding: 6px 4px; border-bottom: 1px solid #D9CFBB; }
+  .pos-table td { padding: 6px 4px; border-bottom: 1px solid #EDE6D8; vertical-align: top; }
+  .pos-icon-btn { background: none; border: none; cursor: pointer; color: #A6402E; font-size: 13px; }
+  .pos-link-btn { background: none; border: none; cursor: pointer; color: #7C8B5E; font-size: 12px; padding: 0; }
+  .pos-metric { background: #FBF8F2; border: 1px solid #E2D9C6; border-radius: 12px; padding: 14px; text-align: center; }
+  .pos-metric .num { font-family: 'Fraunces', serif; font-size: 26px; }
+  .pos-metric .label { font-size: 12px; color: #6B5E4C; margin-top: 2px; }
+  .pos-empty { color: #8C8069; font-size: 13px; text-align: center; padding: 20px 0; }
+  .pos-receipt { font-size: 13px; }
+  .pos-receipt-line { display: flex; justify-content: space-between; padding: 3px 0; }
+  .pos-receipt-mods { font-size: 11px; color: #6B5E4C; padding-left: 8px; }
+  .pos-receipt-divider { border-top: 1px dashed #D9CFBB; margin: 8px 0; }
+  .pos-mod-group-tag { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #D9CFBB; border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12px; margin: 0 6px 6px 0; background: #fff; }
+  .pos-mod-x-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: #F5D8D2;
+    color: #A6402E;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+  .pos-mod-x-btn:hover { background: #E9B4A9; }
+  #print-area { display: none; }
+  @media print {
+    body * { visibility: hidden; }
+    #print-area, #print-area * { visibility: visible; }
+    #print-area { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 12px; font-family: 'Inter', system-ui, sans-serif; color: #000; }
+    #print-area .pos-receipt-line { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
+    #print-area .pos-receipt-mods { font-size: 11px; padding-left: 8px; }
+    #print-area .pos-receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="pos-root" id="pos-root">
+  <h1 style="font-size:22px;">Buen día, Bienvenido</h1>
+  <div class="pos-tabs" id="pos-tabs"></div>
+  <div id="pos-content"></div>
+  <div id="print-area"></div>
+</div>
+
+<script>
+(function() {
+  window.storage = {
+    async get(key) {
+      const v = localStorage.getItem(key);
+      if (v === null) throw new Error('not found');
+      return { key, value: v };
+    },
+    async set(key, value) {
+      localStorage.setItem(key, value);
+      return { key, value };
+    },
+    async delete(key) {
+      localStorage.removeItem(key);
+      return { key, deleted: true };
+    },
+    async list(prefix) {
+      return { keys: Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix)) };
+    },
+  };
+
+  const STORAGE_PRODUCTS = 'pos:products';
+  const STORAGE_SALES = 'pos:sales';
+  const STORAGE_SETTINGS = 'pos:settings';
+
+  const DEFAULT_PRODUCTS = [
+    { id: 'p1', name: 'Espresso', price: 35, category: 'Café', stock: 50, modifiers: [] },
+    { id: 'p2', name: 'Americano', price: 40, category: 'Café', stock: 50, modifiers: [] },
+    { id: 'p3', name: 'Capuchino', price: 48, category: 'Café', stock: 50, modifiers: [
+      { id: 'mleche', name: 'Tipo de leche', options: [ { label: 'Entera', priceDelta: 0 }, { label: 'Deslactosada', priceDelta: 0 }, { label: 'Almendra', priceDelta: 8 }, { label: 'Avena', priceDelta: 8 } ] },
+      { id: 'mjarabe', name: 'Jarabe', options: [ { label: 'Ninguno', priceDelta: 0 }, { label: 'Vainilla', priceDelta: 6 }, { label: 'Caramelo', priceDelta: 6 } ] }
+    ] },
+    { id: 'p4', name: 'Latte', price: 50, category: 'Café', stock: 50, modifiers: [
+      { id: 'mleche', name: 'Tipo de leche', options: [ { label: 'Entera', priceDelta: 0 }, { label: 'Deslactosada', priceDelta: 0 }, { label: 'Almendra', priceDelta: 8 }, { label: 'Avena', priceDelta: 8 } ] },
+      { id: 'mjarabe', name: 'Jarabe', options: [ { label: 'Ninguno', priceDelta: 0 }, { label: 'Vainilla', priceDelta: 6 }, { label: 'Caramelo', priceDelta: 6 } ] }
+    ] },
+    { id: 'p5', name: 'Chocolate caliente', price: 45, category: 'Bebidas', stock: 30, modifiers: [] },
+    { id: 'p6', name: 'Té de manzanilla', price: 30, category: 'Bebidas', stock: 30, modifiers: [] },
+    { id: 'p7', name: 'Croissant', price: 38, category: 'Panadería', stock: 20, modifiers: [] },
+    { id: 'p8', name: 'Concha', price: 22, category: 'Panadería', stock: 20, modifiers: [] },
+  ];
+
+  let state = {
+    tab: 'vender',
+    products: [],
+    sales: [],
+    cart: {},
+    categoryFilter: 'Todos',
+    settings: { businessName: 'Cafetería' },
+    lastSale: null,
+    customerName: '',
+    configuringProductId: null,
+    configSelections: {},
+    editingModifiersId: null,
+    confirmingReset: false,
+  };
+
+  async function loadData() {
+    try {
+      const p = await window.storage.get(STORAGE_PRODUCTS, false);
+      state.products = p ? JSON.parse(p.value) : DEFAULT_PRODUCTS;
+    } catch (e) {
+      state.products = DEFAULT_PRODUCTS;
+    }
+    state.products.forEach(p => { if (!Array.isArray(p.modifiers)) p.modifiers = []; });
+    try {
+      const s = await window.storage.get(STORAGE_SALES, false);
+      state.sales = s ? JSON.parse(s.value) : [];
+    } catch (e) {
+      state.sales = [];
+    }
+    if (!(await window.storage.get(STORAGE_PRODUCTS, false).catch(() => null))) {
+      await saveProducts();
+    }
+    try {
+      const s = await window.storage.get(STORAGE_SETTINGS, false);
+      if (s) state.settings = JSON.parse(s.value);
+    } catch (e) { /* usa valores por defecto */ }
+    render();
+  }
+
+  async function saveProducts() {
+    try { await window.storage.set(STORAGE_PRODUCTS, JSON.stringify(state.products), false); }
+    catch (e) { console.error('No se pudo guardar productos', e); }
+  }
+  async function saveSales() {
+    try { await window.storage.set(STORAGE_SALES, JSON.stringify(state.sales), false); }
+    catch (e) { console.error('No se pudo guardar ventas', e); }
+  }
+  async function saveSettings() {
+    try { await window.storage.set(STORAGE_SETTINGS, JSON.stringify(state.settings), false); }
+    catch (e) { console.error('No se pudo guardar la configuración', e); }
+  }
+
+  function fmt(n) { return '$' + Number(n).toFixed(2); }
+  function todayKey(d) { return new Date(d).toISOString().slice(0, 10); }
+  function uid() { return 'id' + Math.random().toString(36).slice(2, 9); }
+
+  function setTab(tab) { state.tab = tab; render(); }
+
+  function inCartQtyForProduct(productId) {
+    return Object.values(state.cart).reduce((sum, line) => sum + (line.productId === productId ? line.qty : 0), 0);
+  }
+
+  function addToCart(productId) {
+    const product = state.products.find(p => p.id === productId);
+    if (!product) return;
+    if (inCartQtyForProduct(productId) >= product.stock) return;
+    if (product.modifiers && product.modifiers.length > 0) {
+      state.configuringProductId = productId;
+      state.configSelections = {};
+      product.modifiers.forEach(g => { state.configSelections[g.id] = g.options[0] ? g.options[0].label : null; });
+      render();
+      return;
+    }
+    addLineToCart(productId, {});
+  }
+
+  function addLineToCart(productId, modifiersSelected) {
+    const product = state.products.find(p => p.id === productId);
+    if (!product) return;
+    if (inCartQtyForProduct(productId) >= product.stock) return;
+    let unitPrice = product.price;
+    (product.modifiers || []).forEach(g => {
+      const chosen = modifiersSelected[g.id];
+      const opt = g.options.find(o => o.label === chosen);
+      if (opt) unitPrice += opt.priceDelta;
+    });
+    const lineKey = productId + '::' + JSON.stringify(modifiersSelected);
+    if (state.cart[lineKey]) {
+      state.cart[lineKey].qty += 1;
+    } else {
+      state.cart[lineKey] = { productId, qty: 1, modifiers: modifiersSelected, unitPrice };
+    }
+    state.configuringProductId = null;
+    render();
+  }
+
+  function confirmConfig() {
+    if (!state.configuringProductId) return;
+    addLineToCart(state.configuringProductId, { ...state.configSelections });
+  }
+  function cancelConfig() {
+    state.configuringProductId = null;
+    render();
+  }
+
+  function changeQty(lineKey, delta) {
+    const line = state.cart[lineKey];
+    if (!line) return;
+    const product = state.products.find(p => p.id === line.productId);
+    const next = line.qty + delta;
+    if (next <= 0) {
+      delete state.cart[lineKey];
+    } else if (product && delta > 0 && inCartQtyForProduct(line.productId) >= product.stock) {
+      return;
+    } else {
+      line.qty = next;
+    }
+    render();
+  }
+
+  function cartTotal() {
+    return Object.values(state.cart).reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
+  }
+
+  function modifiersSummary(modifiers) {
+    return Object.values(modifiers || {}).filter(Boolean).join(', ');
+  }
+
+  async function checkout() {
+    const items = Object.values(state.cart).map(line => {
+      const p = state.products.find(pr => pr.id === line.productId);
+      return { id: line.productId, name: p.name, price: line.unitPrice, qty: line.qty, modifiers: line.modifiers };
+    });
+    if (items.length === 0) return;
+    items.forEach(it => {
+      const p = state.products.find(pr => pr.id === it.id);
+      if (p) p.stock = Math.max(0, p.stock - it.qty);
+    });
+    const sale = { id: uid(), date: new Date().toISOString(), items, total: cartTotal(), customerName: state.customerName.trim() || null };
+    state.sales.push(sale);
+    state.lastSale = sale;
+    state.cart = {};
+    state.customerName = '';
+    await saveProducts();
+    await saveSales();
+    render();
+  }
+
+  function orderHtml(sale) {
+    if (!sale) return '';
+    const d = new Date(sale.date);
+    const itemsHtml = sale.items.map(i => {
+      const modsSummary = modifiersSummary(i.modifiers);
+      return `<div style="margin-bottom:10px;">
+        <div style="font-size:16px; font-weight:500;">${i.qty}× ${i.name}</div>
+        ${modsSummary ? `<div style="font-size:13px; color:#3C2A1E; padding-left:6px;">→ ${modsSummary}</div>` : ''}
+      </div>`;
+    }).join('');
+    return `
+      <div style="text-align:center; margin-bottom:8px;">
+        <strong style="font-family:'Fraunces',serif; font-size:16px;">Orden</strong><br/>
+        <span style="font-size:12px;">${d.toLocaleDateString('es-MX')} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+      ${sale.customerName ? `<div style="text-align:center; font-size:14px; font-weight:500; margin-bottom:8px;">Cliente: ${sale.customerName}</div>` : ''}
+      <div class="pos-receipt-divider"></div>
+      ${itemsHtml}
+    `;
+  }
+
+  function receiptHtml(sale) {
+    if (!sale) return '';
+    const d = new Date(sale.date);
+    const itemsHtml = sale.items.map(i => {
+      const modsSummary = modifiersSummary(i.modifiers);
+      return `<div class="pos-receipt-line"><span>${i.qty}× ${i.name}</span><span>${fmt(i.price * i.qty)}</span></div>
+        ${modsSummary ? `<div class="pos-receipt-mods">${modsSummary}</div>` : ''}`;
+    }).join('');
+    return `
+      <div style="text-align:center; margin-bottom:8px;">
+        <strong style="font-family:'Fraunces',serif; font-size:16px;">${state.settings.businessName}</strong><br/>
+        <span style="font-size:12px;">${d.toLocaleDateString('es-MX')} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+      ${sale.customerName ? `<div style="text-align:center; font-size:12px; margin-bottom:4px;">Cliente: ${sale.customerName}</div>` : ''}
+      <div class="pos-receipt-divider"></div>
+      ${itemsHtml}
+      <div class="pos-receipt-divider"></div>
+      <div class="pos-receipt-line" style="font-weight:500;"><span>Total</span><span>${fmt(sale.total)}</span></div>
+      <div style="text-align:center; margin-top:10px; font-size:12px;">¡Gracias por tu compra!</div>
+    `;
+  }
+
+  function printDocument(sale, type) {
+    document.getElementById('print-area').innerHTML = type === 'orden' ? orderHtml(sale) : receiptHtml(sale);
+    window.print();
+  }
+
+  function addProduct(data) {
+    state.products.push({ id: uid(), name: data.name, price: Number(data.price), category: data.category || 'General', stock: Number(data.stock) || 0, modifiers: [] });
+    saveProducts();
+    render();
+  }
+  function updateProduct(id, field, value) {
+    const p = state.products.find(pr => pr.id === id);
+    if (!p) return;
+    p[field] = (field === 'price' || field === 'stock') ? Number(value) : value;
+    saveProducts();
+  }
+  function deleteProduct(id) {
+    state.products = state.products.filter(p => p.id !== id);
+    saveProducts();
+    render();
+  }
+
+  function parseOptionsInput(raw) {
+    return raw.split(',').map(part => part.trim()).filter(Boolean).map(part => {
+      const match = part.match(/^(.*?)\s*\+\s*([0-9]+(\.[0-9]+)?)$/);
+      if (match) return { label: match[1].trim(), priceDelta: Number(match[2]) };
+      return { label: part, priceDelta: 0 };
+    });
+  }
+
+  function addModifierGroup(productId, name, optionsRaw) {
+    const p = state.products.find(pr => pr.id === productId);
+    if (!p || !name.trim()) return;
+    const options = parseOptionsInput(optionsRaw);
+    if (options.length === 0) return;
+    if (!Array.isArray(p.modifiers)) p.modifiers = [];
+    p.modifiers.push({ id: uid(), name: name.trim(), options });
+    saveProducts();
+    render();
+  }
+  function deleteModifierGroup(productId, groupId) {
+    const p = state.products.find(pr => pr.id === productId);
+    if (!p) return;
+    p.modifiers = p.modifiers.filter(g => g.id !== groupId);
+    saveProducts();
+    render();
+  }
+  function deleteModifierOption(productId, groupId, optionLabel) {
+    const p = state.products.find(pr => pr.id === productId);
+    if (!p) return;
+    const group = p.modifiers.find(g => g.id === groupId);
+    if (!group) return;
+    group.options = group.options.filter(o => o.label !== optionLabel);
+    if (group.options.length === 0) {
+      p.modifiers = p.modifiers.filter(g => g.id !== groupId);
+    }
+    saveProducts();
+    render();
+  }
+
+  function renderTabs() {
+    const tabs = [['vender', 'Vender'], ['productos', 'Productos'], ['reportes', 'Reportes']];
+    const el = document.getElementById('pos-tabs');
+    el.innerHTML = '';
+    tabs.forEach(([key, label]) => {
+      const btn = document.createElement('button');
+      btn.className = 'pos-tab' + (state.tab === key ? ' active' : '');
+      btn.textContent = label;
+      btn.onclick = () => setTab(key);
+      el.appendChild(btn);
+    });
+  }
+
+  function renderVender() {
+    const categories = ['Todos', ...new Set(state.products.map(p => p.category))];
+    const filtered = state.categoryFilter === 'Todos' ? state.products : state.products.filter(p => p.category === state.categoryFilter);
+
+    const chips = categories.map(c =>
+      `<button class="pos-chip${state.categoryFilter === c ? ' active' : ''}" data-cat="${c}">${c}</button>`
+    ).join('');
+
+    const products = filtered.map(p => {
+      const inCartQty = inCartQtyForProduct(p.id);
+      const outOfStock = inCartQty >= p.stock;
+      return `<button class="pos-product" data-add="${p.id}" ${outOfStock ? 'disabled' : ''}>
+        <span class="pos-product-name">${p.name}</span>
+        <span class="pos-product-price">${fmt(p.price)}</span>
+        ${p.modifiers && p.modifiers.length > 0 ? `<div class="pos-product-mod-hint">Personalizable</div>` : ''}
+        ${p.stock - inCartQty <= 5 ? `<div class="pos-product-stock">Quedan ${p.stock - inCartQty}</div>` : ''}
+      </button>`;
+    }).join('') || '<div class="pos-empty">No hay productos en esta categoría.</div>';
+
+    const cartLines = Object.entries(state.cart);
+    const cartHtml = cartLines.length === 0
+      ? '<div class="pos-empty">El carrito está vacío.</div>'
+      : cartLines.map(([lineKey, line]) => {
+          const p = state.products.find(pr => pr.id === line.productId);
+          if (!p) return '';
+          const modsSummary = modifiersSummary(line.modifiers);
+          return `<div class="pos-cart-item">
+            <div class="pos-cart-item-top">
+              <span>${p.name}</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button class="pos-qty-btn" data-dec="${encodeURIComponent(lineKey)}">−</button>
+                <span>${line.qty}</span>
+                <button class="pos-qty-btn" data-inc="${encodeURIComponent(lineKey)}">+</button>
+                <span style="min-width:56px; text-align:right;">${fmt(line.unitPrice * line.qty)}</span>
+              </div>
+            </div>
+            ${modsSummary ? `<div class="pos-cart-item-mods">${modsSummary}</div>` : ''}
+          </div>`;
+        }).join('');
+
+    let rightPanel;
+    if (state.configuringProductId) {
+      const product = state.products.find(p => p.id === state.configuringProductId);
+      const groupsHtml = (product.modifiers || []).map(g => `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:13px; font-weight:500; margin-bottom:6px;">${g.name}</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${g.options.map(o => `<button class="pos-chip${state.configSelections[g.id] === o.label ? ' active' : ''}" data-mod-group="${g.id}" data-mod-option="${o.label}">${o.label}${o.priceDelta ? ' (+' + fmt(o.priceDelta) + ')' : ''}</button>`).join('')}
+          </div>
+        </div>
+      `).join('');
+      rightPanel = `
+        <h3 style="font-size:16px; margin-bottom:10px;">Personalizar ${product.name}</h3>
+        ${groupsHtml}
+        <button class="pos-btn" id="confirm-config-btn">Agregar al carrito</button>
+        <button class="pos-btn pos-btn-secondary" id="cancel-config-btn">Cancelar</button>
+      `;
+    } else if (state.lastSale && cartLines.length === 0) {
+      rightPanel = `
+        <h3 style="font-size:16px; margin-bottom:10px;">Ticket de la última venta</h3>
+        <div class="pos-receipt">${receiptHtml(state.lastSale)}</div>
+        <button class="pos-btn" id="print-btn">Imprimir ticket</button>
+        <button class="pos-btn pos-btn-secondary" id="print-order-btn">Imprimir orden</button>
+        <button class="pos-btn pos-btn-secondary" id="new-sale-btn">Nueva venta</button>
+      `;
+    } else {
+      rightPanel = `
+        <h3 style="font-size:16px; margin-bottom:10px;">Carrito</h3>
+        <label style="font-size:12px; color:#6B5E4C;">Nombre del cliente (opcional)</label>
+        <input class="pos-input" id="customer-name" placeholder="Ej. Camila" value="${state.customerName}" style="margin-bottom:10px;" />
+        ${cartHtml}
+        <div class="pos-total-row"><span>Total</span><span>${fmt(cartTotal())}</span></div>
+        <button class="pos-btn" id="checkout-btn" ${cartLines.length === 0 ? 'disabled' : ''}>Cobrar</button>
+      `;
+    }
+
+    document.getElementById('pos-content').innerHTML = `
+      <div class="pos-grid">
+        <div class="pos-card">
+          <div class="pos-chip-row">${chips}</div>
+          <div class="pos-product-grid">${products}</div>
+        </div>
+        <div class="pos-card">${rightPanel}</div>
+      </div>
+    `;
+
+    document.querySelectorAll('[data-cat]').forEach(el => el.onclick = () => { state.categoryFilter = el.dataset.cat; render(); });
+    document.querySelectorAll('[data-add]').forEach(el => el.onclick = () => addToCart(el.dataset.add));
+    document.querySelectorAll('[data-inc]').forEach(el => el.onclick = () => changeQty(decodeURIComponent(el.dataset.inc), 1));
+    document.querySelectorAll('[data-dec]').forEach(el => el.onclick = () => changeQty(decodeURIComponent(el.dataset.dec), -1));
+    document.querySelectorAll('[data-mod-group]').forEach(el => el.onclick = () => {
+      state.configSelections[el.dataset.modGroup] = el.dataset.modOption;
+      render();
+    });
+    const confirmBtn = document.getElementById('confirm-config-btn');
+    if (confirmBtn) confirmBtn.onclick = confirmConfig;
+    const cancelBtn = document.getElementById('cancel-config-btn');
+    if (cancelBtn) cancelBtn.onclick = cancelConfig;
+    const customerInput = document.getElementById('customer-name');
+    if (customerInput) customerInput.oninput = (e) => { state.customerName = e.target.value; };
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (checkoutBtn) checkoutBtn.onclick = checkout;
+    const printBtn = document.getElementById('print-btn');
+    if (printBtn) printBtn.onclick = () => printDocument(state.lastSale, 'ticket');
+    const printOrderBtn = document.getElementById('print-order-btn');
+    if (printOrderBtn) printOrderBtn.onclick = () => printDocument(state.lastSale, 'orden');
+    const newSaleBtn = document.getElementById('new-sale-btn');
+    if (newSaleBtn) newSaleBtn.onclick = () => { state.lastSale = null; render(); };
+  }
+
+  function exportDataText() {
+    return JSON.stringify({ products: state.products, sales: state.sales, settings: state.settings }, null, 2);
+  }
+  function importDataText(jsonText) {
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (!parsed || typeof parsed !== 'object') throw new Error('formato inválido');
+      if (Array.isArray(parsed.products)) state.products = parsed.products;
+      if (Array.isArray(parsed.sales)) state.sales = parsed.sales;
+      if (parsed.settings) state.settings = parsed.settings;
+      saveProducts();
+      saveSales();
+      saveSettings();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function renderProductos() {
+    const rows = state.products.map(p => {
+      const modsHtml = (p.modifiers || []).map(g => `
+        <div style="margin-bottom:8px;">
+          <div style="font-size:12px; font-weight:500; display:flex; align-items:center; gap:8px;">
+            ${g.name}
+            <button class="pos-icon-btn" data-del-mod-group="${p.id}::${g.id}" style="font-size:11px;">Eliminar grupo</button>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
+            ${g.options.map(o => `<span class="pos-mod-group-tag">${o.label}${o.priceDelta ? ' +' + o.priceDelta : ''}
+              <button class="pos-mod-x-btn" data-del-mod-option="${p.id}::${g.id}::${encodeURIComponent(o.label)}">×</button>
+            </span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+      const isEditing = state.editingModifiersId === p.id;
+      const editorHtml = isEditing ? `
+        <div class="pos-card" style="background:#fff; margin-top:10px;">
+          <div style="font-size:13px; font-weight:500; margin-bottom:8px;">Agregar modificador a ${p.name}</div>
+          <div class="pos-inline-form-3">
+            <div><label style="font-size:12px; color:#6B5E4C;">Nombre del grupo</label><input class="pos-input" id="new-mod-name-${p.id}" placeholder="Ej. Tipo de leche" /></div>
+            <div><label style="font-size:12px; color:#6B5E4C;">Opciones (separadas por coma, usa +N para costo extra)</label><input class="pos-input" id="new-mod-options-${p.id}" placeholder="Entera, Deslactosada, Almendra +8" /></div>
+            <button class="pos-btn" data-add-mod-group="${p.id}" style="margin:0;">Agregar</button>
+          </div>
+        </div>
+      ` : '';
+      return `
+        <div class="pos-card" style="margin-bottom:10px;">
+          <div class="pos-product-edit-grid">
+            <div><label style="font-size:11px; color:#6B5E4C;">Nombre</label><input class="pos-input" data-field="name" data-id="${p.id}" value="${p.name}" /></div>
+            <div><label style="font-size:11px; color:#6B5E4C;">Categoría</label><input class="pos-input" data-field="category" data-id="${p.id}" value="${p.category}" /></div>
+            <div><label style="font-size:11px; color:#6B5E4C;">Precio</label><input class="pos-input" data-field="price" data-id="${p.id}" type="number" step="0.5" value="${p.price}" /></div>
+            <div><label style="font-size:11px; color:#6B5E4C;">Stock</label><input class="pos-input" data-field="stock" data-id="${p.id}" type="number" value="${p.stock}" /></div>
+          </div>
+          <div style="margin-top:10px;">
+            ${modsHtml || '<span style="color:#8C8069; font-size:12px;">Sin modificadores</span>'}
+          </div>
+          <div style="display:flex; gap:14px; margin-top:6px;">
+            <button class="pos-link-btn" data-toggle-mods="${p.id}">${isEditing ? 'Cerrar' : 'Editar modificadores'}</button>
+            <button class="pos-icon-btn" data-del="${p.id}">Eliminar producto</button>
+          </div>
+          ${editorHtml}
+        </div>
+      `;
+    }).join('');
+
+
+
+    document.getElementById('pos-content').innerHTML = `
+      <div class="pos-card" style="margin-bottom:14px;">
+        <h3 style="font-size:16px; margin-bottom:10px;">Datos del negocio</h3>
+        <label style="font-size:12px; color:#6B5E4C;">Nombre que aparece en los tickets</label>
+        <input class="pos-input" id="business-name" value="${state.settings.businessName}" style="max-width:280px;" />
+      </div>
+      <div class="pos-card" style="margin-bottom:14px;">
+        <h3 style="font-size:16px; margin-bottom:6px;">Respaldo de datos</h3>
+        <p style="font-size:12px; color:#6B5E4C; margin:0 0 8px;">Copia este texto y guárdalo (por ejemplo en tus notas) por si el guardado automático falla. Para restaurar un respaldo, pega el texto aquí y da clic en "Restaurar este texto".</p>
+        <textarea id="backup-textarea" class="pos-input" style="height:110px; font-family:monospace; font-size:11px; resize:vertical;">${exportDataText()}</textarea>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+          <button class="pos-btn" id="copy-backup-btn" style="margin:0; width:auto; padding:8px 14px;">Copiar</button>
+          <button class="pos-btn pos-btn-secondary" id="import-backup-btn" style="margin:0; width:auto; padding:8px 14px;">Restaurar este texto</button>
+        </div>
+        <div id="backup-msg" style="font-size:12px; margin-top:6px;"></div>
+      </div>
+      <div class="pos-card" style="margin-bottom:14px;">
+        <h3 style="font-size:16px; margin-bottom:10px;">Agregar producto</h3>
+        <div class="pos-inline-form-5">
+          <div><label style="font-size:12px; color:#6B5E4C;">Nombre</label><input class="pos-input" id="new-name" placeholder="Ej. Mocha" /></div>
+          <div><label style="font-size:12px; color:#6B5E4C;">Categoría</label><input class="pos-input" id="new-cat" placeholder="Café" /></div>
+          <div><label style="font-size:12px; color:#6B5E4C;">Precio</label><input class="pos-input" id="new-price" type="number" step="0.5" placeholder="0" /></div>
+          <div><label style="font-size:12px; color:#6B5E4C;">Stock</label><input class="pos-input" id="new-stock" type="number" placeholder="0" /></div>
+          <button class="pos-btn" id="add-product-btn" style="margin:0;">Agregar</button>
+        </div>
+        <div id="add-error" style="color:#A6402E; font-size:12px; margin-top:6px;"></div>
+      </div>
+      <div class="pos-card">
+        <h3 style="font-size:16px; margin-bottom:10px;">Catálogo</h3>
+        ${rows || '<div class="pos-empty">Aún no hay productos.</div>'}
+      </div>
+    `;
+
+    document.getElementById('business-name').onchange = (e) => {
+      state.settings.businessName = e.target.value.trim() || 'Cafetería';
+      saveSettings();
+    };
+
+    document.getElementById('copy-backup-btn').onclick = async () => {
+      const textarea = document.getElementById('backup-textarea');
+      const msgEl = document.getElementById('backup-msg');
+      try {
+        await navigator.clipboard.writeText(textarea.value);
+        msgEl.style.color = '#7C8B5E';
+        msgEl.textContent = 'Copiado. Pégalo en tus notas para guardarlo.';
+      } catch (e) {
+        textarea.focus();
+        textarea.select();
+        msgEl.style.color = '#6B5E4C';
+        msgEl.textContent = 'No se pudo copiar automáticamente: el texto ya está seleccionado, cópialo manualmente.';
+      }
+    };
+
+    document.getElementById('import-backup-btn').onclick = () => {
+      const textarea = document.getElementById('backup-textarea');
+      const msgEl = document.getElementById('backup-msg');
+      const ok = importDataText(textarea.value);
+      if (ok) {
+        msgEl.style.color = '#7C8B5E';
+        msgEl.textContent = 'Datos restaurados correctamente.';
+        render();
+      } else {
+        msgEl.style.color = '#A6402E';
+        msgEl.textContent = 'Ese texto no tiene un formato válido, revísalo e intenta de nuevo.';
+      }
+    };
+
+    document.getElementById('add-product-btn').onclick = () => {
+      const name = document.getElementById('new-name').value.trim();
+      const category = document.getElementById('new-cat').value.trim();
+      const price = document.getElementById('new-price').value;
+      const stock = document.getElementById('new-stock').value;
+      const errorEl = document.getElementById('add-error');
+      if (!name || !price) {
+        errorEl.textContent = 'Ingresa al menos un nombre y un precio.';
+        return;
+      }
+      errorEl.textContent = '';
+      addProduct({ name, category, price, stock });
+    };
+
+    document.querySelectorAll('[data-field]').forEach(el => {
+      el.onchange = () => updateProduct(el.dataset.id, el.dataset.field, el.value);
+    });
+    document.querySelectorAll('[data-del]').forEach(el => {
+      el.onclick = () => deleteProduct(el.dataset.del);
+    });
+    document.querySelectorAll('[data-toggle-mods]').forEach(el => {
+      el.onclick = () => { state.editingModifiersId = state.editingModifiersId === el.dataset.toggleMods ? null : el.dataset.toggleMods; render(); };
+    });
+    document.querySelectorAll('[data-add-mod-group]').forEach(el => {
+      el.onclick = () => {
+        const pid = el.dataset.addModGroup;
+        const nameInput = document.getElementById('new-mod-name-' + pid);
+        const optionsInput = document.getElementById('new-mod-options-' + pid);
+        if (!nameInput.value.trim() || !optionsInput.value.trim()) return;
+        addModifierGroup(pid, nameInput.value, optionsInput.value);
+      };
+    });
+    document.querySelectorAll('[data-del-mod-group]').forEach(el => {
+      el.onclick = () => {
+        const [pid, gid] = el.dataset.delModGroup.split('::');
+        deleteModifierGroup(pid, gid);
+      };
+    });
+    document.querySelectorAll('[data-del-mod-option]').forEach(el => {
+      el.onclick = () => {
+        const [pid, gid, encodedLabel] = el.dataset.delModOption.split('::');
+        deleteModifierOption(pid, gid, decodeURIComponent(encodedLabel));
+      };
+    });
+  }
+
+  async function resetSales() {
+    state.sales = [];
+    await saveSales();
+    state.confirmingReset = false;
+    render();
+  }
+
+  function renderReportes() {
+    const today = todayKey(new Date());
+    const todaySales = state.sales.filter(s => todayKey(s.date) === today);
+    const todayTotal = todaySales.reduce((sum, s) => sum + s.total, 0);
+    const itemsSoldToday = todaySales.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.qty, 0), 0);
+
+    const recent = [...state.sales].reverse().slice(0, 15);
+    const rows = recent.map(s => {
+      const d = new Date(s.date);
+      const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = d.toLocaleDateString('es-MX');
+      const summary = s.items.map(i => `${i.qty}× ${i.name}`).join(', ');
+      return `<tr><td>${dateStr} ${time}</td><td>${s.customerName || '—'}</td><td>${summary}</td><td>${fmt(s.total)}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="pos-empty">Aún no hay ventas registradas.</td></tr>';
+
+    document.getElementById('pos-content').innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px;">
+        ${state.confirmingReset ? `
+          <span style="font-size:13px; color:#A6402E;">¿Borrar todo el historial? No se puede deshacer.</span>
+          <button class="pos-btn" id="confirm-reset-btn" style="width:auto; margin-top:0; padding:8px 14px; background:#A6402E;">Sí, borrar todo</button>
+          <button class="pos-btn pos-btn-secondary" id="cancel-reset-btn" style="width:auto; margin-top:0; padding:8px 14px;">Cancelar</button>
+        ` : `
+          <button class="pos-btn pos-btn-secondary" id="reset-sales-btn" style="width:auto; margin-top:0; padding:8px 14px;">Reiniciar reportes</button>
+        `}
+      </div>
+      <div class="pos-metrics-grid">
+        <div class="pos-metric"><div class="num">${fmt(todayTotal)}</div><div class="label">Ventas de hoy</div></div>
+        <div class="pos-metric"><div class="num">${todaySales.length}</div><div class="label">Tickets hoy</div></div>
+        <div class="pos-metric"><div class="num">${itemsSoldToday}</div><div class="label">Productos vendidos hoy</div></div>
+      </div>
+      <div class="pos-card">
+        <h3 style="font-size:16px; margin-bottom:10px;">Historial reciente</h3>
+        <div class="pos-table-wrap">
+        <table class="pos-table">
+          <thead><tr><th>Fecha</th><th>Cliente</th><th>Detalle</th><th>Total</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        </div>
+      </div>
+    `;
+    const resetBtn = document.getElementById('reset-sales-btn');
+    if (resetBtn) resetBtn.onclick = () => { state.confirmingReset = true; render(); };
+    const confirmResetBtn = document.getElementById('confirm-reset-btn');
+    if (confirmResetBtn) confirmResetBtn.onclick = resetSales;
+    const cancelResetBtn = document.getElementById('cancel-reset-btn');
+    if (cancelResetBtn) cancelResetBtn.onclick = () => { state.confirmingReset = false; render(); };
+  }
+
+  function render() {
+    renderTabs();
+    if (state.tab === 'vender') renderVender();
+    else if (state.tab === 'productos') renderProductos();
+    else renderReportes();
+  }
+
+  loadData();
+})();
+</script>
+</body>
+</html>
