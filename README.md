@@ -10,11 +10,14 @@ Es una sola página web (HTML + CSS + JavaScript), sin dependencias ni instalaci
 1. Descarga este repositorio (botón verde "Code" → "Download ZIP", o `git clone`).
 2. Haz doble clic en `index.html`. Se abre en tu navegador y ya puedes usarlo.
 
-### Opción 2: publicarlo en línea con GitHub Pages (para usarlo desde cualquier dispositivo con internet)
+### Opción 2: publicarlo en línea con GitHub Pages (para usarlo desde cualquier dispositivo con internet, e instalarlo como app)
 1. Sube este repositorio a tu cuenta de GitHub.
 2. Ve a **Settings → Pages** en el repositorio.
 3. En "Source", selecciona la rama `main` y la carpeta `/ (root)`.
 4. Guarda. En un par de minutos tu punto de venta estará disponible en una URL tipo `https://tu-usuario.github.io/nombre-del-repo/`.
+5. Abre esa URL en Chrome/Edge (computadora o celular) y busca la opción **"Instalar app"** (ícono de instalación en la barra de direcciones, o "Agregar a pantalla de inicio" en celular). Con esto queda con su propio ícono, se abre en su propia ventana, y sigue funcionando aunque no tengas internet en ese momento.
+
+> Nota: la instalación como app (PWA) y el funcionamiento sin internet solo aplican cuando lo abres desde la URL de GitHub Pages (https). Si abres el archivo `index.html` directamente desde tu computadora (doble clic), funciona igual de bien pero sin esa opción de "Instalar".
 
 > Nota: como los datos se guardan con `localStorage`, cada navegador/dispositivo donde lo abras tendrá su propia información por separado (no se sincroniza automáticamente entre computadora y celular, por ejemplo). Usa el botón "Respaldo de datos" dentro de la pestaña Productos para copiar y restaurar tu información cuando lo necesites.
 
