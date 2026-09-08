@@ -272,6 +272,15 @@
   const STORAGE_SETTINGS = 'pos:settings';
   const STORAGE_STAFF = 'pos:staff';
 
+  const DEFAULT_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDqWmNjWo2Sc3YwkC8Cioro_1eBxpdrFV4",
+    authDomain: "pos1188.firebaseapp.com",
+    projectId: "pos1188",
+    storageBucket: "pos1188.firebasestorage.app",
+    messagingSenderId: "603136756927",
+    appId: "1:603136756927:web:805a60b6ad3eec36e6ca0a"
+  };
+
   const DEFAULT_PRODUCTS = [
     { id: 'p1', name: 'Espresso', price: 35, category: 'Café', stock: 50, modifiers: [] },
     { id: 'p2', name: 'Americano', price: 40, category: 'Café', stock: 50, modifiers: [] },
@@ -309,7 +318,12 @@
   };
 
   async function loadData() {
-    const savedConfig = getSavedFirebaseConfig();
+    let savedConfig = getSavedFirebaseConfig();
+    const syncDisabled = localGet('pos:syncDisabled') === '1';
+    if (!savedConfig && !syncDisabled && DEFAULT_FIREBASE_CONFIG && DEFAULT_FIREBASE_CONFIG.apiKey) {
+      savedConfig = DEFAULT_FIREBASE_CONFIG;
+      localSet('pos:firebaseConfig', JSON.stringify(DEFAULT_FIREBASE_CONFIG));
+    }
     if (savedConfig) {
       const ok = connectFirebase(savedConfig);
       if (ok) attachRealtimeListeners();
@@ -427,6 +441,7 @@
     if (!ok) return { ok: false, error: 'No se pudo conectar. Revisa que tu proyecto tenga Firestore activado.' };
     try {
       localSet('pos:firebaseConfig', JSON.stringify(config));
+      localDelete('pos:syncDisabled');
       await seedFirestoreIfEmpty();
       attachRealtimeListeners();
       return { ok: true };
@@ -439,6 +454,7 @@
   function disconnectSync() {
     disconnectFirebase();
     localDelete('pos:firebaseConfig');
+    localSet('pos:syncDisabled', '1');
     render();
   }
 
