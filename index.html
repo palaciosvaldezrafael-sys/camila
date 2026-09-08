@@ -156,10 +156,14 @@
   }
   .pos-mod-x-btn:hover { background: #E9B4A9; }
   #print-area { display: none; }
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
   @media print {
     body * { visibility: hidden; }
     #print-area, #print-area * { visibility: visible; }
-    #print-area { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 12px; font-family: 'Inter', system-ui, sans-serif; color: #000; }
+    #print-area { display: block !important; position: absolute; top: 0; left: 0; width: 80mm; padding: 3mm; font-family: 'Inter', system-ui, sans-serif; color: #000; }
     #print-area .pos-receipt-line { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
     #print-area .pos-receipt-mods { font-size: 11px; padding-left: 8px; }
     #print-area .pos-receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
