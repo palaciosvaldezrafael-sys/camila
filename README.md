@@ -33,3 +33,28 @@ Es una sola página web (HTML + CSS + JavaScript), sin dependencias ni instalaci
 ## Próximos pasos
 
 Este proyecto empezó como una versión de navegador antes de convertirlo en una app de escritorio instalable (por ejemplo con Electron o Tauri).
+
+## Sincronizar entre varios dispositivos (opcional)
+
+Por defecto, cada dispositivo guarda sus propios datos por separado. Si quieres que los cambios en un dispositivo (agregar un producto, hacer una venta) se reflejen automáticamente en los demás, puedes conectar una base de datos gratuita de Firebase:
+
+1. Ve a [console.firebase.google.com](https://console.firebase.google.com) e inicia sesión con una cuenta de Google.
+2. Da clic en "Crear un proyecto", ponle un nombre y termina el asistente (puedes desactivar Google Analytics, no es necesario).
+3. Dentro del proyecto, da clic en el ícono web `</>` para "Agregar app". Ponle un apodo y da clic en "Registrar app" (no necesitas configurar Hosting).
+4. Firebase te mostrará un bloque de código con `const firebaseConfig = { ... }`. Copia ese bloque completo.
+5. En el menú lateral, ve a "Firestore Database" → "Crear base de datos". Elige "Iniciar en modo de prueba" y selecciona la región más cercana a ti.
+6. Dentro de la pestaña "Reglas" de Firestore, reemplaza el contenido por esto y publica:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /posData/{docId} {
+         allow read, write: if true;
+       }
+     }
+   }
+   ```
+7. En tu punto de venta, entra como administrador, ve a **Productos → Sincronización en la nube**, pega el bloque `firebaseConfig` que copiaste, y da clic en "Conectar".
+8. Repite el paso 7 en cada dispositivo donde quieras usar el punto de venta, pegando la misma configuración.
+
+> Nota de seguridad: con estas reglas, cualquier persona que tenga esa configuración podría leer o modificar tus datos. Es aceptable para un negocio pequeño con gente de confianza, pero evita compartir públicamente ese bloque de configuración.

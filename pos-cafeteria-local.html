@@ -4,10 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Punto de venta — Cafetería</title>
-<link rel="manifest" href="./manifest.json" />
-<meta name="theme-color" content="#3C2A1E" />
-<link rel="apple-touch-icon" href="./icon-192.png" />
-<link rel="icon" href="./icon-192.png" />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; padding: 0; background: #EDE6D8; }
@@ -1200,12 +1196,6 @@
 
   loadData();
 })();
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((e) => console.error('No se pudo registrar el service worker', e));
-  });
-}
 </script>
 </body>
 </html>

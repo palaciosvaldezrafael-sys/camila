@@ -1,25 +1,13 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Punto de venta — Cafetería</title>
-<link rel="manifest" href="./manifest.json" />
-<meta name="theme-color" content="#3C2A1E" />
-<link rel="apple-touch-icon" href="./icon-192.png" />
-<link rel="icon" href="./icon-192.png" />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  html, body { margin: 0; padding: 0; background: #EDE6D8; }
   * { box-sizing: border-box; }
   .pos-root {
     font-family: 'Inter', system-ui, sans-serif;
     background: #EDE6D8;
     color: #2B211A;
     padding: 1.25rem;
-    max-width: 1100px;
-    margin: 0 auto;
-    min-height: 100vh;
+    border-radius: 16px;
+    min-height: 500px;
   }
   .pos-root h1, .pos-root h2, .pos-root h3 {
     font-family: 'Fraunces', Georgia, serif;
@@ -173,8 +161,8 @@
     #print-area .pos-receipt-divider { border-top: 1px dashed #000; margin: 6px 0; }
   }
 </style>
-</head>
-<body>
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 
 <div class="pos-root" id="pos-root">
   <h1 style="font-size:22px;">Buen día, Bienvenido</h1>
@@ -1200,12 +1188,4 @@
 
   loadData();
 })();
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((e) => console.error('No se pudo registrar el service worker', e));
-  });
-}
 </script>
-</body>
-</html>
