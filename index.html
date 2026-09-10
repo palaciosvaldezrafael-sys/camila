@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#3C2A1E" />
 <link rel="apple-touch-icon" href="./icon-192.png" />
 <link rel="icon" href="./icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="POS Cafetería" />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; padding: 0; background: #EDE6D8; }
@@ -209,7 +212,7 @@
 
   function getSavedFirebaseConfig() {
     try {
-      const raw = localGet('pos:firebaseConfig');
+      const raw = localGet('pos:' + APP_NAMESPACE + ':firebaseConfig');
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
@@ -267,11 +270,6 @@
     },
   };
 
-  const STORAGE_PRODUCTS = 'pos:products';
-  const STORAGE_SALES = 'pos:sales';
-  const STORAGE_SETTINGS = 'pos:settings';
-  const STORAGE_STAFF = 'pos:staff';
-
   const DEFAULT_FIREBASE_CONFIG = {
     apiKey: "AIzaSyDqWmNjWo2Sc3YwkC8Cioro_1eBxpdrFV4",
     authDomain: "pos1188.firebaseapp.com",
@@ -280,6 +278,14 @@
     messagingSenderId: "603136756927",
     appId: "1:603136756927:web:805a60b6ad3eec36e6ca0a"
   };
+  // Espacio de nombres único por cafetería, para que varias cafeterías abiertas
+  // en el mismo navegador (ej. mismo dominio de GitHub Pages) no se pisen entre sí.
+  const APP_NAMESPACE = DEFAULT_FIREBASE_CONFIG.projectId || 'default';
+
+  const STORAGE_PRODUCTS = 'pos:' + APP_NAMESPACE + ':products';
+  const STORAGE_SALES = 'pos:' + APP_NAMESPACE + ':sales';
+  const STORAGE_SETTINGS = 'pos:' + APP_NAMESPACE + ':settings';
+  const STORAGE_STAFF = 'pos:' + APP_NAMESPACE + ':staff';
 
   const DEFAULT_PRODUCTS = [
     { id: 'p1', name: 'Espresso', price: 35, category: 'Café', stock: 50, modifiers: [] },
@@ -319,10 +325,10 @@
 
   async function loadData() {
     let savedConfig = getSavedFirebaseConfig();
-    const syncDisabled = localGet('pos:syncDisabled') === '1';
+    const syncDisabled = localGet('pos:' + APP_NAMESPACE + ':syncDisabled') === '1';
     if (!savedConfig && !syncDisabled && DEFAULT_FIREBASE_CONFIG && DEFAULT_FIREBASE_CONFIG.apiKey) {
       savedConfig = DEFAULT_FIREBASE_CONFIG;
-      localSet('pos:firebaseConfig', JSON.stringify(DEFAULT_FIREBASE_CONFIG));
+      localSet('pos:' + APP_NAMESPACE + ':firebaseConfig', JSON.stringify(DEFAULT_FIREBASE_CONFIG));
     }
     if (savedConfig) {
       const ok = connectFirebase(savedConfig);
@@ -440,8 +446,8 @@
     const ok = connectFirebase(config);
     if (!ok) return { ok: false, error: 'No se pudo conectar. Revisa que tu proyecto tenga Firestore activado.' };
     try {
-      localSet('pos:firebaseConfig', JSON.stringify(config));
-      localDelete('pos:syncDisabled');
+      localSet('pos:' + APP_NAMESPACE + ':firebaseConfig', JSON.stringify(config));
+      localDelete('pos:' + APP_NAMESPACE + ':syncDisabled');
       await seedFirestoreIfEmpty();
       attachRealtimeListeners();
       return { ok: true };
@@ -453,8 +459,8 @@
 
   function disconnectSync() {
     disconnectFirebase();
-    localDelete('pos:firebaseConfig');
-    localSet('pos:syncDisabled', '1');
+    localDelete('pos:' + APP_NAMESPACE + ':firebaseConfig');
+    localSet('pos:' + APP_NAMESPACE + ':syncDisabled', '1');
     render();
   }
 
