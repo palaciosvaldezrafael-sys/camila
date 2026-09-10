@@ -1168,16 +1168,21 @@
       `;
     } else {
       const staffButtons = state.staffList.map(s => `<button class="pos-product" data-select-staff="${s.id}" style="width:100%; text-align:center;">${s.name}${s.pin ? ' 🔒' : ''}</button>`).join('');
+      const noStaffYet = state.staffList.length === 0;
       body = `
         <div class="pos-card" style="max-width:380px; margin:0 auto;">
           <h3 style="font-size:16px; margin-bottom:12px; text-align:center;">¿Quién va a usar el punto de venta?</h3>
-          <div style="display:grid; gap:8px; margin-bottom:14px;">${staffButtons || '<div class="pos-empty">Aún no hay baristas registrados. Agrega el primero abajo.</div>'}</div>
+          <div style="display:grid; gap:8px; margin-bottom:14px;">${staffButtons || '<div class="pos-empty">Aún no hay baristas registrados.</div>'}</div>
+          ${noStaffYet ? `
           <div style="border-top:1px solid #D9CFBB; padding-top:12px;">
-            <label style="font-size:12px; color:#6B5E4C;">Agregar barista nuevo</label>
+            <label style="font-size:12px; color:#6B5E4C;">Configuración inicial: agrega el primer administrador</label>
             <input class="pos-input" id="new-staff-name-login" placeholder="Nombre" style="margin-bottom:6px;" />
             <input class="pos-input" id="new-staff-pin-login" placeholder="PIN (opcional)" inputmode="numeric" style="margin-bottom:6px;" />
             <button class="pos-btn" id="add-staff-login-btn">Agregar y entrar</button>
           </div>
+          ` : `
+          <p style="font-size:12px; color:#8C8069; text-align:center; margin-top:10px;">¿No apareces en la lista? Pide a un administrador que te agregue desde Productos → Personal.</p>
+          `}
         </div>
       `;
     }
@@ -1194,8 +1199,7 @@
     if (addStaffLoginBtn) addStaffLoginBtn.onclick = () => {
       const name = document.getElementById('new-staff-name-login').value;
       const pin = document.getElementById('new-staff-pin-login').value;
-      const role = state.staffList.length === 0 ? 'admin' : 'barista';
-      const staff = addStaff(name, pin, role);
+      const staff = addStaff(name, pin, 'admin');
       if (staff) { state.currentStaffId = staff.id; render(); }
     };
   }
