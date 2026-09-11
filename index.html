@@ -189,6 +189,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 (function() {
   let firestoreDb = null;
@@ -286,6 +287,7 @@
   const STORAGE_SALES = 'pos:' + APP_NAMESPACE + ':sales';
   const STORAGE_SETTINGS = 'pos:' + APP_NAMESPACE + ':settings';
   const STORAGE_STAFF = 'pos:' + APP_NAMESPACE + ':staff';
+  const STORAGE_ORDER_COUNTER = 'pos:' + APP_NAMESPACE + ':orderCounter';
 
   const DEFAULT_PRODUCTS = [
     { id: 'p1', name: 'Espresso', price: 35, category: 'Café', stock: 50, modifiers: [] },
@@ -310,9 +312,12 @@
     sales: [],
     cart: {},
     categoryFilter: 'Todos',
-    settings: { businessName: 'Cafetería' },
+    settings: { businessName: 'Cafetería', emailjs: { publicKey: '', serviceId: '', templateId: '' } },
     lastSale: null,
     customerName: '',
+    customerEmail: '',
+    cashReceived: '',
+    orderCounter: 0,
     configuringProductId: null,
     configSelections: {},
     editingModifiersId: null,
@@ -353,6 +358,7 @@
     try {
       const s = await window.storage.get(STORAGE_SETTINGS, false);
       if (s) state.settings = JSON.parse(s.value);
+      if (!state.settings.emailjs) state.settings.emailjs = { publicKey: '', serviceId: '', templateId: '' };
     } catch (e) { /* usa valores por defecto */ }
     try {
       const st = await window.storage.get(STORAGE_STAFF, false);
@@ -364,6 +370,12 @@
     if (state.staffList.length > 0 && !state.staffList.some(s => s.role === 'admin')) {
       state.staffList[0].role = 'admin';
       await saveStaff();
+    }
+    try {
+      const oc = await window.storage.get(STORAGE_ORDER_COUNTER, false);
+      state.orderCounter = oc ? JSON.parse(oc.value) : 0;
+    } catch (e) {
+      state.orderCounter = 0;
     }
     render();
   }
@@ -383,6 +395,10 @@
   async function saveStaff() {
     try { await window.storage.set(STORAGE_STAFF, JSON.stringify(state.staffList), false); }
     catch (e) { console.error('No se pudo guardar el personal', e); }
+  }
+  async function saveOrderCounter() {
+    try { await window.storage.set(STORAGE_ORDER_COUNTER, JSON.stringify(state.orderCounter), false); }
+    catch (e) { console.error('No se pudo guardar el contador de órdenes', e); }
   }
 
   function fmt(n) { return '$' + Number(n).toFixed(2); }
@@ -411,6 +427,7 @@
       await saveSales();
       await saveSettings();
       await saveStaff();
+      await saveOrderCounter();
     }
   }
 
@@ -430,7 +447,7 @@
     };
     bind(STORAGE_PRODUCTS, (v) => { state.products = v; state.products.forEach(p => { if (!Array.isArray(p.modifiers)) p.modifiers = []; }); });
     bind(STORAGE_SALES, (v) => { state.sales = v; });
-    bind(STORAGE_SETTINGS, (v) => { state.settings = v; });
+    bind(STORAGE_SETTINGS, (v) => { state.settings = v; if (!state.settings.emailjs) state.settings.emailjs = { publicKey: '', serviceId: '', templateId: '' }; });
     bind(STORAGE_STAFF, (v) => {
       state.staffList = v;
       state.staffList.forEach(s => { if (!s.role) s.role = 'barista'; });
@@ -438,6 +455,7 @@
         state.staffList[0].role = 'admin';
       }
     });
+    bind(STORAGE_ORDER_COUNTER, (v) => { state.orderCounter = v; });
   }
 
   async function connectSync(configText) {
@@ -462,6 +480,59 @@
     localDelete('pos:' + APP_NAMESPACE + ':firebaseConfig');
     localSet('pos:' + APP_NAMESPACE + ':syncDisabled', '1');
     render();
+  }
+
+  function isEmailConfigured() {
+    const cfg = state.settings.emailjs;
+    return !!(cfg && cfg.publicKey && cfg.serviceId && cfg.templateId);
+  }
+
+  function orderNumberLabel(sale) {
+    return sale && sale.orderNumber ? '#' + String(sale.orderNumber).padStart(4, '0') : '';
+  }
+
+  function receiptPlainText(sale) {
+    if (!sale) return '';
+    const d = new Date(sale.date);
+    const lines = sale.items.map((i) => {
+      const mods = modifiersSummary(i.modifiers);
+      return `${i.qty}x ${i.name}${mods ? ' (' + mods + ')' : ''} - ${fmt(i.price * i.qty)}`;
+    });
+    const orderLine = orderNumberLabel(sale) ? [`Orden ${orderNumberLabel(sale)}`] : [];
+    return [
+      state.settings.businessName,
+      ...orderLine,
+      `${d.toLocaleDateString('es-MX')} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+      '',
+      ...lines,
+      '',
+      `Total: ${fmt(sale.total)}`,
+      '',
+      '¡Gracias por tu compra!',
+    ].join('\n');
+  }
+
+  async function sendReceiptEmail(sale) {
+    if (!isEmailConfigured()) return { ok: false, error: 'El envío de correos no está configurado todavía.' };
+    if (!sale || !sale.customerEmail) return { ok: false, error: 'Esta venta no tiene un correo de cliente capturado.' };
+    if (!window.emailjs) return { ok: false, error: 'No se pudo cargar el servicio de correo. Revisa tu conexión a internet.' };
+    const cfg = state.settings.emailjs;
+    try {
+      emailjs.init(cfg.publicKey);
+      await emailjs.send(cfg.serviceId, cfg.templateId, {
+        to_email: sale.customerEmail,
+        email: sale.customerEmail,
+        order_id: sale.orderNumber ? String(sale.orderNumber).padStart(4, '0') : '',
+        customer_name: sale.customerName || '',
+        business_name: state.settings.businessName,
+        receipt_text: receiptPlainText(sale),
+        total: fmt(sale.total),
+      });
+      return { ok: true };
+    } catch (e) {
+      console.error('Error al enviar correo', e);
+      return { ok: false, error: 'No se pudo enviar el correo. Revisa la configuración en Productos.' };
+    }
   }
 
   function isCurrentAdmin() {
@@ -587,6 +658,12 @@
     return Object.values(state.cart).reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
   }
 
+  function cashChangeInfo() {
+    const received = parseFloat(state.cashReceived);
+    if (isNaN(received)) return null;
+    return { received, change: received - cartTotal() };
+  }
+
   function modifiersSummary(modifiers) {
     return Object.values(modifiers || {}).filter(Boolean).join(', ');
   }
@@ -602,13 +679,19 @@
       if (p) p.stock = Math.max(0, p.stock - it.qty);
     });
     const attendedBy = state.staffList.find(s => s.id === state.currentStaffId);
-    const sale = { id: uid(), date: new Date().toISOString(), items, total: cartTotal(), customerName: state.customerName.trim() || null, staffName: attendedBy ? attendedBy.name : null };
+    const cashInfo = cashChangeInfo();
+    const orderNumber = (state.orderCounter || 0) + 1;
+    const sale = { id: uid(), orderNumber, date: new Date().toISOString(), items, total: cartTotal(), customerName: state.customerName.trim() || null, customerEmail: state.customerEmail.trim() || null, staffName: attendedBy ? attendedBy.name : null, cashReceived: cashInfo ? cashInfo.received : null, change: cashInfo ? cashInfo.change : null };
+    state.orderCounter = orderNumber;
     state.sales.push(sale);
     state.lastSale = sale;
     state.cart = {};
     state.customerName = '';
+    state.customerEmail = '';
+    state.cashReceived = '';
     await saveProducts();
     await saveSales();
+    await saveOrderCounter();
     render();
   }
 
@@ -624,7 +707,7 @@
     }).join('');
     return `
       <div style="text-align:center; margin-bottom:8px;">
-        <strong style="font-family:'Fraunces',serif; font-size:16px;">Orden</strong><br/>
+        <strong style="font-family:'Fraunces',serif; font-size:16px;">Orden ${orderNumberLabel(sale)}</strong><br/>
         <span style="font-size:12px;">${d.toLocaleDateString('es-MX')} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
       ${sale.customerName ? `<div style="text-align:center; font-size:14px; font-weight:500; margin-bottom:8px;">Cliente: ${sale.customerName}</div>` : ''}
@@ -645,6 +728,7 @@
     return `
       <div style="text-align:center; margin-bottom:8px;">
         <strong style="font-family:'Fraunces',serif; font-size:16px;">${state.settings.businessName}</strong><br/>
+        ${orderNumberLabel(sale) ? `<span style="font-size:12px; font-weight:500;">Orden ${orderNumberLabel(sale)}</span><br/>` : ''}
         <span style="font-size:12px;">${d.toLocaleDateString('es-MX')} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
       ${sale.customerName ? `<div style="text-align:center; font-size:12px; margin-bottom:4px;">Cliente: ${sale.customerName}</div>` : ''}
@@ -653,6 +737,10 @@
       ${itemsHtml}
       <div class="pos-receipt-divider"></div>
       <div class="pos-receipt-line" style="font-weight:500;"><span>Total</span><span>${fmt(sale.total)}</span></div>
+      ${sale.cashReceived != null ? `
+      <div class="pos-receipt-line"><span>Recibido</span><span>${fmt(sale.cashReceived)}</span></div>
+      <div class="pos-receipt-line"><span>Cambio</span><span>${fmt(sale.change)}</span></div>
+      ` : ''}
       <div style="text-align:center; margin-top:10px; font-size:12px;">¡Gracias por tu compra!</div>
     `;
   }
@@ -733,6 +821,15 @@
     });
   }
 
+  function cashChangeInfoHtml() {
+    const info = cashChangeInfo();
+    if (!info) return '';
+    if (info.change < 0) {
+      return `<div style="color:#A6402E; font-size:13px; margin-top:6px;">Faltan ${fmt(Math.abs(info.change))}</div>`;
+    }
+    return `<div style="color:#7C8B5E; font-size:15px; font-weight:500; margin-top:6px;">Cambio: ${fmt(info.change)}</div>`;
+  }
+
   function renderVender() {
     const categories = ['Todos', ...new Set(state.products.map(p => p.category))];
     const filtered = state.categoryFilter === 'Todos' ? state.products : state.products.filter(p => p.category === state.categoryFilter);
@@ -792,19 +889,34 @@
       `;
     } else if (state.lastSale && cartLines.length === 0) {
       rightPanel = `
-        <h3 style="font-size:16px; margin-bottom:10px;">Ticket de la última venta</h3>
+        <h3 style="font-size:16px; margin-bottom:10px;">Ticket de la venta ${orderNumberLabel(state.lastSale)}</h3>
         <div class="pos-receipt">${receiptHtml(state.lastSale)}</div>
         <button class="pos-btn" id="print-btn">Imprimir ticket</button>
         <button class="pos-btn pos-btn-secondary" id="print-order-btn">Imprimir orden</button>
+        ${isEmailConfigured() && state.lastSale.customerEmail ? `<button class="pos-btn pos-btn-secondary" id="email-receipt-btn">Enviar por correo</button>` : ''}
         <button class="pos-btn pos-btn-secondary" id="new-sale-btn">Nueva venta</button>
+        <div id="email-msg" style="font-size:12px; margin-top:6px;"></div>
       `;
     } else {
       rightPanel = `
         <h3 style="font-size:16px; margin-bottom:10px;">Carrito</h3>
         <label style="font-size:12px; color:#6B5E4C;">Nombre del cliente (opcional)</label>
-        <input class="pos-input" id="customer-name" placeholder="Ej. Camila" value="${state.customerName}" style="margin-bottom:10px;" />
+        <input class="pos-input" id="customer-name" placeholder="Ej. Camila" value="${state.customerName}" style="margin-bottom:8px;" />
+        ${isEmailConfigured() ? `
+        <label style="font-size:12px; color:#6B5E4C;">Correo del cliente (opcional, para enviarle el ticket)</label>
+        <input class="pos-input" id="customer-email" type="email" placeholder="cliente@correo.com" value="${state.customerEmail}" style="margin-bottom:10px;" />
+        ` : ''}
         ${cartHtml}
         <div class="pos-total-row"><span>Total</span><span>${fmt(cartTotal())}</span></div>
+        <div style="margin: 10px 0; padding-top: 10px; border-top: 1px solid #D9CFBB;">
+          <label style="font-size:12px; color:#6B5E4C;">Pago en efectivo (opcional)</label>
+          <div class="pos-chip-row" style="margin-top:6px;">
+            ${[50, 100, 200, 500, 1000].map(v => `<button class="pos-chip" data-cash-quick="${v}">$${v}</button>`).join('')}
+            <button class="pos-chip" data-cash-quick="exact">Exacto</button>
+          </div>
+          <input class="pos-input" id="cash-received" type="number" inputmode="decimal" placeholder="¿Con cuánto pagó?" value="${state.cashReceived}" style="margin-top:6px;" />
+          <div id="cash-change-info">${cashChangeInfoHtml()}</div>
+        </div>
         <button class="pos-btn" id="checkout-btn" ${cartLines.length === 0 ? 'disabled' : ''}>Cobrar</button>
       `;
     }
@@ -833,6 +945,20 @@
     if (cancelBtn) cancelBtn.onclick = cancelConfig;
     const customerInput = document.getElementById('customer-name');
     if (customerInput) customerInput.oninput = (e) => { state.customerName = e.target.value; };
+    const customerEmailInput = document.getElementById('customer-email');
+    if (customerEmailInput) customerEmailInput.oninput = (e) => { state.customerEmail = e.target.value; };
+    document.querySelectorAll('[data-cash-quick]').forEach(el => {
+      el.onclick = () => {
+        state.cashReceived = el.dataset.cashQuick === 'exact' ? String(cartTotal()) : el.dataset.cashQuick;
+        render();
+      };
+    });
+    const cashInput = document.getElementById('cash-received');
+    if (cashInput) cashInput.oninput = (e) => {
+      state.cashReceived = e.target.value;
+      const infoEl = document.getElementById('cash-change-info');
+      if (infoEl) infoEl.innerHTML = cashChangeInfoHtml();
+    };
     const checkoutBtn = document.getElementById('checkout-btn');
     if (checkoutBtn) checkoutBtn.onclick = checkout;
     const printBtn = document.getElementById('print-btn');
@@ -841,10 +967,26 @@
     if (printOrderBtn) printOrderBtn.onclick = () => printDocument(state.lastSale, 'orden');
     const newSaleBtn = document.getElementById('new-sale-btn');
     if (newSaleBtn) newSaleBtn.onclick = () => { state.lastSale = null; render(); };
+    const emailBtn = document.getElementById('email-receipt-btn');
+    if (emailBtn) {
+      emailBtn.onclick = async () => {
+        const msgEl = document.getElementById('email-msg');
+        msgEl.style.color = '#6B5E4C';
+        msgEl.textContent = 'Enviando...';
+        const result = await sendReceiptEmail(state.lastSale);
+        if (result.ok) {
+          msgEl.style.color = '#7C8B5E';
+          msgEl.textContent = 'Correo enviado.';
+        } else {
+          msgEl.style.color = '#A6402E';
+          msgEl.textContent = result.error;
+        }
+      };
+    }
   }
 
   function exportDataText() {
-    return JSON.stringify({ products: state.products, sales: state.sales, settings: state.settings, staffList: state.staffList }, null, 2);
+    return JSON.stringify({ products: state.products, sales: state.sales, settings: state.settings, staffList: state.staffList, orderCounter: state.orderCounter }, null, 2);
   }
   function importDataText(jsonText) {
     try {
@@ -854,10 +996,12 @@
       if (Array.isArray(parsed.sales)) state.sales = parsed.sales;
       if (parsed.settings) state.settings = parsed.settings;
       if (Array.isArray(parsed.staffList)) state.staffList = parsed.staffList;
+      if (typeof parsed.orderCounter === 'number') state.orderCounter = parsed.orderCounter;
       saveProducts();
       saveSales();
       saveSettings();
       saveStaff();
+      saveOrderCounter();
       return true;
     } catch (e) {
       return false;
@@ -924,6 +1068,19 @@
           <button class="pos-btn" id="connect-sync-btn" style="margin-top:8px;">Conectar</button>
         `}
         <div id="sync-msg" style="font-size:12px; margin-top:6px;"></div>
+      </div>
+      <div class="pos-card" style="margin-bottom:14px;">
+        <h3 style="font-size:16px; margin-bottom:6px;">Envío de tickets por correo</h3>
+        <p style="font-size:12px; color:#6B5E4C; margin:0 0 8px;">
+          ${isEmailConfigured() ? '✓ Configurado. Al cobrar, si capturas el correo del cliente, podrás enviarle el ticket.' : 'Usa un servicio gratuito llamado EmailJS para poder enviar el ticket al correo del cliente. Pega aquí tus tres claves.'}
+        </p>
+        <div class="pos-inline-form-3">
+          <div><label style="font-size:12px; color:#6B5E4C;">Public Key</label><input class="pos-input" id="emailjs-public-key" value="${state.settings.emailjs.publicKey}" /></div>
+          <div><label style="font-size:12px; color:#6B5E4C;">Service ID</label><input class="pos-input" id="emailjs-service-id" value="${state.settings.emailjs.serviceId}" /></div>
+          <div><label style="font-size:12px; color:#6B5E4C;">Template ID</label><input class="pos-input" id="emailjs-template-id" value="${state.settings.emailjs.templateId}" /></div>
+        </div>
+        <button class="pos-btn" id="save-emailjs-btn" style="width:auto; padding:8px 14px; margin-top:8px;">Guardar</button>
+        <div id="emailjs-msg" style="font-size:12px; margin-top:6px;"></div>
       </div>
       <div class="pos-card" style="margin-bottom:14px;">
         <h3 style="font-size:16px; margin-bottom:10px;">Personal (baristas)</h3>
@@ -1000,6 +1157,18 @@
     }
     const disconnectSyncBtn = document.getElementById('disconnect-sync-btn');
     if (disconnectSyncBtn) disconnectSyncBtn.onclick = disconnectSync;
+
+    document.getElementById('save-emailjs-btn').onclick = () => {
+      state.settings.emailjs = {
+        publicKey: document.getElementById('emailjs-public-key').value.trim(),
+        serviceId: document.getElementById('emailjs-service-id').value.trim(),
+        templateId: document.getElementById('emailjs-template-id').value.trim(),
+      };
+      saveSettings();
+      const msgEl = document.getElementById('emailjs-msg');
+      msgEl.style.color = '#7C8B5E';
+      msgEl.textContent = 'Guardado.';
+    };
 
     document.getElementById('add-staff-btn').onclick = () => {
       const name = document.getElementById('new-staff-name').value;
@@ -1091,7 +1260,9 @@
 
   async function resetSales() {
     state.sales = [];
+    state.orderCounter = 0;
     await saveSales();
+    await saveOrderCounter();
     state.confirmingReset = false;
     render();
   }
@@ -1108,14 +1279,14 @@
       const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
       const dateStr = d.toLocaleDateString('es-MX');
       const summary = s.items.map(i => `${i.qty}× ${i.name}`).join(', ');
-      return `<tr><td>${dateStr} ${time}</td><td>${s.staffName || '—'}</td><td>${s.customerName || '—'}</td><td>${summary}</td><td>${fmt(s.total)}</td></tr>`;
-    }).join('') || '<tr><td colspan="5" class="pos-empty">Aún no hay ventas registradas.</td></tr>';
+      return `<tr><td>${orderNumberLabel(s)}</td><td>${dateStr} ${time}</td><td>${s.staffName || '—'}</td><td>${s.customerName || '—'}</td><td>${summary}</td><td>${fmt(s.total)}</td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="pos-empty">Aún no hay ventas registradas.</td></tr>';
 
     document.getElementById('pos-content').innerHTML = `
       ${isCurrentAdmin() ? `
       <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:10px;">
         ${state.confirmingReset ? `
-          <span style="font-size:13px; color:#A6402E;">¿Borrar todo el historial? No se puede deshacer.</span>
+          <span style="font-size:13px; color:#A6402E;">¿Borrar todo el historial y reiniciar la numeración de órdenes? No se puede deshacer.</span>
           <button class="pos-btn" id="confirm-reset-btn" style="width:auto; margin-top:0; padding:8px 14px; background:#A6402E;">Sí, borrar todo</button>
           <button class="pos-btn pos-btn-secondary" id="cancel-reset-btn" style="width:auto; margin-top:0; padding:8px 14px;">Cancelar</button>
         ` : `
@@ -1132,7 +1303,7 @@
         <h3 style="font-size:16px; margin-bottom:10px;">Historial reciente</h3>
         <div class="pos-table-wrap">
         <table class="pos-table">
-          <thead><tr><th>Fecha</th><th>Barista</th><th>Cliente</th><th>Detalle</th><th>Total</th></tr></thead>
+          <thead><tr><th>Orden</th><th>Fecha</th><th>Barista</th><th>Cliente</th><th>Detalle</th><th>Total</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
         </div>
